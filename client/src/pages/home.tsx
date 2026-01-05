@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -132,12 +133,14 @@ function HeroSection() {
         </div>
         
         <div className="mt-6">
-          <Badge 
-            variant="outline" 
-            className="bg-white/10 text-white border-white/30 text-[10px] backdrop-blur-sm rounded-none"
+          <button
+            onClick={() => navigator.clipboard.writeText("Esr8BtwyZwE8wx4No6ZUTK79vjXR4xeqoqxGbCBJpump")}
+            className="bg-white/10 text-white border-2 border-white/30 text-[8px] md:text-[10px] backdrop-blur-sm px-3 py-2 font-mono hover:bg-white/20 transition-colors cursor-pointer"
+            title="Click to copy contract address"
+            data-testid="button-copy-hero-contract"
           >
-            COMING SOON
-          </Badge>
+            CA: Esr8BtwyZwE8wx4No6ZUTK79vjXR4xeqoqxGbCBJpump
+          </button>
         </div>
       </div>
       
@@ -272,27 +275,38 @@ function ProfileSection() {
   );
 }
 
+interface LiveTokenData {
+  price: string;
+  change: string;
+  mcap: string;
+  liquidity: string;
+  volume: string;
+}
+
 function NetworkSection() {
+  const { data: liveData, isLoading } = useQuery<Record<string, LiveTokenData>>({
+    queryKey: ['/api/tokens/live'],
+    refetchInterval: 60000,
+  });
+
   const tokens = [
     {
+      id: "celica",
       name: "CELICA OS",
       symbol: "$CELICA",
       logo: logoImage,
-      change: null,
-      comingSoon: true,
-      contract: null,
-      links: { x: "https://x.com/celicaos", github: "https://github.com/", pumpfun: "https://pump.fun/" },
-      stats: { price: "Coming Soon", mcap: "TBA", holders: "TBA", liquidity: "TBA" }
+      comingSoon: false,
+      contract: "Esr8BtwyZwE8wx4No6ZUTK79vjXR4xeqoqxGbCBJpump",
+      links: { x: "https://x.com/celicaos", github: "https://github.com/CelicaOS/project-celica-os", pumpfun: "https://pump.fun/coin/Esr8BtwyZwE8wx4No6ZUTK79vjXR4xeqoqxGbCBJpump" },
     },
     {
+      id: "elizaos",
       name: "ElizaOS",
       symbol: "$ELIZAOS",
       logo: elizaOsLogo,
-      change: "+2.46%",
       comingSoon: false,
       contract: "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA",
       links: { x: "https://x.com/ai16zdao", github: "https://github.com/elizaos", website: "https://elizaos.ai/" },
-      stats: { price: "$0.005371", mcap: "$40.19M", holders: "5,590", liquidity: "$517.14K" }
     }
   ];
 
@@ -353,15 +367,19 @@ function NetworkSection() {
                     </Badge>
                   </div>
                   
-                  {token.comingSoon ? (
-                    <Badge className="mt-2 bg-primary text-primary-foreground text-[8px] rounded-none">
-                      Coming Soon
+                  {isLoading ? (
+                    <Badge className="mt-2 bg-muted text-muted-foreground text-[8px] rounded-none">
+                      Loading...
+                    </Badge>
+                  ) : liveData?.[token.id] ? (
+                    <Badge 
+                      className={`mt-2 text-white border-0 text-[8px] rounded-none ${liveData[token.id].change.startsWith('+') ? 'bg-status-online' : 'bg-destructive'}`}
+                    >
+                      {liveData[token.id].change}
                     </Badge>
                   ) : (
-                    <Badge 
-                      className="mt-2 bg-status-online text-white border-0 text-[8px] rounded-none"
-                    >
-                      {token.change}
+                    <Badge className="mt-2 bg-muted text-muted-foreground text-[8px] rounded-none">
+                      N/A
                     </Badge>
                   )}
                 </div>
@@ -370,9 +388,16 @@ function NetworkSection() {
               {token.contract && (
                 <div className="mb-4">
                   <p className="text-[8px] text-muted-foreground mb-1">Contract Address</p>
-                  <p className="text-[8px] font-mono bg-muted p-2 overflow-x-auto">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(token.contract);
+                    }}
+                    className="w-full text-left text-[8px] font-mono bg-muted p-2 overflow-x-auto hover:bg-muted/80 transition-colors cursor-pointer border-2 border-transparent hover:border-primary/50"
+                    title="Click to copy"
+                    data-testid={`button-copy-contract-${token.symbol.replace('$', '')}`}
+                  >
                     {token.contract}
-                  </p>
+                  </button>
                 </div>
               )}
               
@@ -426,19 +451,27 @@ function NetworkSection() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[8px] text-muted-foreground">Price</p>
-                  <p className="text-[10px] md:text-xs" data-testid={`text-price-${token.symbol.replace('$', '')}`}>{token.stats.price}</p>
+                  <p className="text-[10px] md:text-xs" data-testid={`text-price-${token.symbol.replace('$', '')}`}>
+                    {isLoading ? "..." : liveData?.[token.id]?.price || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-[8px] text-muted-foreground">MCap</p>
-                  <p className="text-[10px] md:text-xs" data-testid={`text-mcap-${token.symbol.replace('$', '')}`}>{token.stats.mcap}</p>
+                  <p className="text-[10px] md:text-xs" data-testid={`text-mcap-${token.symbol.replace('$', '')}`}>
+                    {isLoading ? "..." : liveData?.[token.id]?.mcap || "N/A"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[8px] text-muted-foreground">Holders</p>
-                  <p className="text-[10px] md:text-xs" data-testid={`text-holders-${token.symbol.replace('$', '')}`}>{token.stats.holders}</p>
+                  <p className="text-[8px] text-muted-foreground">Volume 24h</p>
+                  <p className="text-[10px] md:text-xs" data-testid={`text-volume-${token.symbol.replace('$', '')}`}>
+                    {isLoading ? "..." : liveData?.[token.id]?.volume || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-[8px] text-muted-foreground">Liquidity</p>
-                  <p className="text-[10px] md:text-xs" data-testid={`text-liquidity-${token.symbol.replace('$', '')}`}>{token.stats.liquidity}</p>
+                  <p className="text-[10px] md:text-xs" data-testid={`text-liquidity-${token.symbol.replace('$', '')}`}>
+                    {isLoading ? "..." : liveData?.[token.id]?.liquidity || "N/A"}
+                  </p>
                 </div>
               </div>
             </Card>
@@ -614,7 +647,7 @@ function Footer() {
               <SiX className="w-4 h-4" />
             </a>
             <a 
-              href="https://github.com/"
+              href="https://github.com/CelicaOS/project-celica-os"
               target="_blank"
               rel="noopener noreferrer"
               className="p-2 border-2 border-white/30 social-icon-hover bg-white/10"
