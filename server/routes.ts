@@ -330,6 +330,58 @@ Status: ${dexStatus === "CONNECTED" && geckoStatus === "CONNECTED" && aiStatus =
     }
   });
 
+  app.get("/api/tokens/live", async (_req, res) => {
+    try {
+      const cached = getFromCache<object>("live-tokens");
+      if (cached) return res.json(cached);
+
+      const addresses = [
+        { id: "celica", address: "Esr8BtwyZwE8wx4No6ZUTK79vjXR4xeqoqxGbCBJpump" },
+        { id: "elizaos", address: "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA" }
+      ];
+
+      const results: Record<string, {
+        price: string;
+        change: string;
+        mcap: string;
+        liquidity: string;
+        volume: string;
+      }> = {};
+
+      await Promise.all(addresses.map(async ({ id, address }) => {
+        try {
+          const response = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${address}`);
+          const data = await response.json() as Array<{
+            priceUsd?: string;
+            priceChange?: { h24?: number };
+            fdv?: number;
+            liquidity?: { usd?: number };
+            volume?: { h24?: number };
+          }>;
+          
+          const token = data[0];
+          if (token) {
+            const price = token.priceUsd ? `$${parseFloat(token.priceUsd).toFixed(6)}` : "N/A";
+            const change = token.priceChange?.h24?.toFixed(2) || "0";
+            const mcap = token.fdv ? (token.fdv >= 1000000 ? `$${(token.fdv / 1000000).toFixed(2)}M` : `$${(token.fdv / 1000).toFixed(1)}K`) : "N/A";
+            const liq = token.liquidity?.usd ? `$${(token.liquidity.usd / 1000).toFixed(1)}K` : "N/A";
+            const vol = token.volume?.h24 ? `$${(token.volume.h24 / 1000).toFixed(1)}K` : "N/A";
+            
+            results[id] = { price, change: `${Number(change) >= 0 ? '+' : ''}${change}%`, mcap, liquidity: liq, volume: vol };
+          }
+        } catch (e) {
+          console.error(`Error fetching ${id}:`, e);
+        }
+      }));
+
+      setCache("live-tokens", results);
+      res.json(results);
+    } catch (error) {
+      console.error("Live tokens error:", error);
+      res.status(500).json({ error: "Failed to fetch live token data" });
+    }
+  });
+
   app.post("/api/terminal/ask", async (req, res) => {
     try {
       const { question, context } = req.body;
